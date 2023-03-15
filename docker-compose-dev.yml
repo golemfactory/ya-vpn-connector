@@ -1,0 +1,12 @@
+services:
+  novpn:
+    build:
+      dockerfile: DockerfileDev
+      context: .
+    command: ./run_dev.sh
+    volumes:
+      - ./:/app
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
