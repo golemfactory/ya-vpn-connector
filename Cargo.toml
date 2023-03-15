@@ -1,0 +1,34 @@
+[package]
+name = "novpn"
+version = "0.1.0"
+authors = ["Przemysław K. Rekucki <przemyslaw.rekucki@golem.network>"]
+edition = "2018"
+#description=""
+license = "GPL-3.0-or-later"
+
+[dependencies]
+tokio = { version = "1.26.0", features = ["full"] }
+tokio-util = { version = "0.6.6", features = ["codec"] }
+bytes = "1.4.0"
+byteorder = "1.3.2"
+structopt = "0.3.5"
+packet = "0.1"
+futures = "0.3.1"
+actix = "0.13.0"
+awc = "3.0.0"
+futures-util = "0.3.26"
+actix-codec = "0.5.0"
+log = "0.4.14"
+actix-rt = "2.4.0"
+env_logger = "0.10.0"
+hex = "0.4.3"
+async-trait = "0.1.51"
+libc = "0.2.101"
+etherparse = "0.13.0"
+
+# fork contains for know fixes to compilation on Windows
+tun = { version = "0.5.5", features = ["async"], git = "https://github.com/scx1332/golem-rust-tun.git" }
+# use original one if don't need windows build
+# tun = { version = "0.5.5", features = ["async"] }
+
+ya-relay-stack = { git = "https://github.com/golemfactory/ya-relay.git", rev = "d14101b" }
