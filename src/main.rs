@@ -1,4 +1,5 @@
 mod tap_codec;
+mod cli_opts;
 
 use crate::tap_codec::{TapPacket, TapPacketCodec};
 use actix::io::SinkWrite;
@@ -7,13 +8,12 @@ use actix_codec::Framed;
 use awc::ws;
 use awc::{error::WsProtocolError, BoxedSocket};
 use bytes::Bytes;
-use etherparse::IpHeader::{Version4, Version6};
-use etherparse::{PacketBuilder, TransportHeader};
 use futures::stream::{SplitSink, SplitStream};
 use futures_util::stream::StreamExt;
 use std::net::IpAddr;
 use structopt::StructOpt;
 use tun::{AsyncDevice, TunPacket, TunPacketCodec};
+use crate::cli_opts::CliOptions;
 
 type WsFramedSink = SplitSink<Framed<BoxedSocket, ws::Codec>, ws::Message>;
 type WsFramedStream = SplitStream<Framed<BoxedSocket, ws::Codec>>;
@@ -190,62 +190,6 @@ impl StreamHandler<Result<TapPacket, std::io::Error>> for VpnWebSocket {
             }
         }
     }
-}
-
-#[derive(Debug, StructOpt, Clone)]
-pub struct CliOptions {
-    #[structopt(long = "http", help = "Enable http server")]
-    pub http: bool,
-
-    #[structopt(
-        long = "http-threads",
-        help = "Number of threads to use for the server",
-        default_value = "2"
-    )]
-    pub http_threads: u64,
-
-    #[structopt(
-        long = "http-port",
-        help = "Port number of the server",
-        default_value = "8080"
-    )]
-    pub http_port: u16,
-
-    #[structopt(
-        long = "websocket-address",
-        help = "Bind websocket address",
-        default_value = "ws://host.docker.internal:7465/net-api/v2/vpn/net/dd45782a49374df98c9f6b94fd26702f/raw/from/192.168.8.1/to/192.168.8.7"
-    )]
-    pub websocket_address: String,
-
-    #[structopt(
-        long = "vpn-network-addr",
-        help = "Bind address to the vpn network",
-        default_value = "192.168.8.1"
-    )]
-    pub vpn_network_addr: String,
-
-    #[structopt(
-        long = "vpn-network-mast",
-        help = "Vpn network mask",
-        default_value = "255.255.255.0"
-    )]
-    pub vpn_network_mask: String,
-
-    #[structopt(
-        long = "vpn-interface-name",
-        help = "Name of the vpn interface",
-        default_value = "vpn0"
-    )]
-    pub vpn_interface_name: String,
-
-    #[structopt(
-    long = "vpn-layer",
-    help = "Name of the vpn interface",
-    default_value = "tun",
-    possible_values = &["tun", "tap"]
-    )]
-    pub vpn_layer: String,
 }
 
 #[actix_rt::main]

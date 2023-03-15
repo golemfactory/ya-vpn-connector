@@ -3,7 +3,8 @@ use std::io;
 use bytes::{BufMut, Bytes, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
 
-/// A Tun Packet to be sent or received on the TUN interface.
+//Note tap packet support is experimental only
+
 #[derive(Debug)]
 pub struct TapPacket(Bytes);
 
