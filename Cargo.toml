@@ -1,8 +1,8 @@
 [package]
-name = "novpn"
+name = "ya-vpn-connector"
 version = "0.1.0"
-authors = ["Przemysław K. Rekucki <przemyslaw.rekucki@golem.network>"]
-edition = "2018"
+authors = ["Sieciech Czajka <sieciech.czajka@golem.network>", "Przemysław K. Rekucki <przemyslaw.rekucki@golem.network>"]
+edition = "2021"
 #description=""
 license = "GPL-3.0-or-later"
 
