@@ -1,6 +1,9 @@
+pub mod cli_opts;
+mod iptables;
 mod tap_codec;
-mod cli_opts;
 
+use crate::cli_opts::CliOptions;
+use crate::iptables::{iptables_cleanup, iptables_route_to_interface};
 use crate::tap_codec::{TapPacket, TapPacketCodec};
 use actix::io::SinkWrite;
 use actix::prelude::*;
@@ -11,9 +14,10 @@ use bytes::Bytes;
 use futures::stream::{SplitSink, SplitStream};
 use futures_util::stream::StreamExt;
 use std::net::IpAddr;
+use network_interface::NetworkInterface;
+use network_interface::NetworkInterfaceConfig;
 use structopt::StructOpt;
 use tun::{AsyncDevice, TunPacket, TunPacketCodec};
-use crate::cli_opts::CliOptions;
 
 type WsFramedSink = SplitSink<Framed<BoxedSocket, ws::Codec>, ws::Message>;
 type WsFramedStream = SplitStream<Framed<BoxedSocket, ws::Codec>>;
@@ -199,6 +203,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("RUST_LOG").unwrap_or("info".to_string()),
     );
     env_logger::init();
+    //let routes_to_delete_later = iptables_route_to_interface("eth0", "vpn0")?;
+    //iptables_cleanup(routes_to_delete_later)?;
+    let network_interfaces = NetworkInterface::show().unwrap();
+
+    for itf in network_interfaces.iter() {
+        println!("{:?}", itf);
+    }
+
     let opt: CliOptions = CliOptions::from_args();
     let app_key = std::env::var("YAGNA_APPKEY").expect("YAGNA_APPKEY not set");
     let (_tx, _rx) = std::sync::mpsc::channel::<bytes::Bytes>();
@@ -208,6 +220,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .header("Authorization", format!("Bearer {app_key}"))
         .connect()
         .await?;
+
+    let network_interfaces = NetworkInterface::show().unwrap();
 
     let (ws_sink, ws_stream) = ws_socket.split();
 
@@ -226,7 +240,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .name(opt.vpn_interface_name)
         .up();
 
+
+    let mut config2 = tun::Configuration::default();
+    let vpn_layer2 = match opt.vpn_layer.as_str() {
+        "tun" => tun::Layer::L3,
+        "tap" => tun::Layer::L2,
+        _ => panic!("Invalid vpn layer"),
+    };
+    config2
+        .layer(vpn_layer)
+        .address(addr)
+        .netmask(mask)
+        .name("vpn2")
+        .up();
+
     let dev = tun::create_as_async(&config).unwrap();
+    let dev2 = tun::create_as_async(&config2).unwrap();
 
     let _ws_actor = if opt.vpn_layer == "tap" {
         let (tap_sink, tap_stream) =

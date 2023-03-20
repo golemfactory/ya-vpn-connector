@@ -24,10 +24,12 @@ env_logger = "0.10.0"
 hex = "0.4.3"
 async-trait = "0.1.51"
 libc = "0.2.101"
-
+iptables = { git = "https://github.com/scx1332/rust-iptables.git" }
 # fork contains for know fixes to compilation on Windows
 tun = { version = "0.5.5", features = ["async"], git = "https://github.com/scx1332/golem-rust-tun.git" }
 # use original one if don't need windows build
 # tun = { version = "0.5.5", features = ["async"] }
 
 ya-relay-stack = { git = "https://github.com/golemfactory/ya-relay.git", rev = "d14101b" }
+network-interface = "1.0.0"
+rand = "0.8.5"
