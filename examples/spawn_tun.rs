@@ -1,3 +1,7 @@
+use std::net::IpAddr;
+use std::thread::sleep;
+use std::time::Duration;
+
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt, Clone)]
@@ -37,4 +41,30 @@ pub struct CliOptions {
     possible_values = &["tun", "tap"]
     )]
     pub vpn_layer: String,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    let opt: CliOptions = CliOptions::from_args();
+
+    let addr = opt.vpn_network_addr.parse::<IpAddr>()?;
+    let mask = opt.vpn_network_mask.parse::<IpAddr>()?;
+    let mut config = tun::Configuration::default();
+    let vpn_layer = match opt.vpn_layer.as_str() {
+        "tun" => tun::Layer::L3,
+        "tap" => tun::Layer::L2,
+        _ => panic!("Invalid vpn layer"),
+    };
+    config
+        .layer(vpn_layer)
+        .address(addr)
+        .netmask(mask)
+        .name(opt.vpn_interface_name)
+        .up();
+
+    let _dev1 = tun::create_as_async(&config).unwrap();
+
+    //wait
+    sleep(Duration::from_secs(10000000));
+    Ok(())
 }
