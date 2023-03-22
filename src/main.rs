@@ -12,8 +12,6 @@ use bytes::Bytes;
 use futures::stream::{SplitSink, SplitStream};
 use futures_util::stream::StreamExt;
 use std::net::IpAddr;
-use network_interface::NetworkInterface;
-use network_interface::NetworkInterfaceConfig;
 use structopt::StructOpt;
 use tun::{AsyncDevice, TunPacket, TunPacketCodec};
 
@@ -203,12 +201,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     //let routes_to_delete_later = iptables_route_to_interface("eth0", "vpn0")?;
     //iptables_cleanup(routes_to_delete_later)?;
-    let network_interfaces = NetworkInterface::show().unwrap();
-
-    for itf in network_interfaces.iter() {
-        log::info!("Network interface {:?}", itf);
-    }
-
     let opt: CliOptions = CliOptions::from_args();
     let app_key = std::env::var("YAGNA_APPKEY").expect("YAGNA_APPKEY not set");
     let (_tx, _rx) = std::sync::mpsc::channel::<bytes::Bytes>();
