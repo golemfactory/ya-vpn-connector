@@ -1,9 +1,7 @@
 pub mod cli_opts;
-mod iptables;
 mod tap_codec;
 
 use crate::cli_opts::CliOptions;
-use crate::iptables::{iptables_cleanup, iptables_route_to_interface};
 use crate::tap_codec::{TapPacket, TapPacketCodec};
 use actix::io::SinkWrite;
 use actix::prelude::*;
@@ -92,11 +90,11 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
             }
             Ok(ws::Frame::Binary(bytes)) => {
                 if let Some(tun_sink) = self.tun_sink.as_mut() {
-                    log::info!("Received Binary packet, sending to TUN...");
+                    log::trace!("Received Binary packet, sending to TUN...");
 
                     match ya_relay_stack::packet_ether_to_ip_slice(&bytes) {
                         Ok(ip_slice) => {
-                            log::info!("IP packet: {:?}", ip_slice);
+                            log::trace!("IP packet: {:?}", ip_slice);
                             if let Err(err) = tun_sink.write(TunPacket::new(ip_slice.to_vec())) {
                                 log::error!("Error sending packet: {:?}", err);
                             }
@@ -106,7 +104,7 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                         }
                     }
                 } else {
-                    log::info!("Received Binary packet, sending to TAP...");
+                    log::trace!("Received Binary packet, sending to TAP...");
                     if let Err(err) = self
                         .tap_sink
                         .as_mut()
@@ -119,14 +117,14 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                 }
             }
             Ok(ws::Frame::Ping(msg)) => {
-                log::info!("Received Ping Message, replying with pong...");
+                log::debug!("Received Ping Message, replying with pong...");
                 if let Err(err) = self.ws_sink.write(ws::Message::Pong(msg)) {
                     log::error!("Error replying with pong: {:?}", err);
                     ctx.stop();
                 }
             }
             Ok(ws::Frame::Pong(_)) => {
-                log::info!("Received Pong Message");
+                log::debug!("Received Pong Message");
             }
             Ok(ws::Frame::Close(reason)) => {
                 //ctx.close(reason);
@@ -149,7 +147,7 @@ impl StreamHandler<Result<TunPacket, std::io::Error>> for VpnWebSocket {
         //self.heartbeat = Instant::now();
         match msg {
             Ok(packet) => {
-                log::info!(
+                log::trace!(
                     "Received packet from TUN {:#?}",
                     packet::ip::Packet::unchecked(packet.get_bytes())
                 );
@@ -180,7 +178,7 @@ impl StreamHandler<Result<TapPacket, std::io::Error>> for VpnWebSocket {
         //self.heartbeat = Instant::now();
         match msg {
             Ok(packet) => {
-                log::info!("Received packet from TUN {:#?}", packet.get_bytes());
+                log::trace!("Received packet from TUN {:#?}", packet.get_bytes());
                 if let Err(err) = self.ws_sink.write(ws::Message::Binary(Bytes::from(
                     packet.get_bytes().to_vec(),
                 ))) {
@@ -208,7 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let network_interfaces = NetworkInterface::show().unwrap();
 
     for itf in network_interfaces.iter() {
-        println!("{:?}", itf);
+        log::info!("Network interface {:?}", itf);
     }
 
     let opt: CliOptions = CliOptions::from_args();
@@ -220,8 +218,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .header("Authorization", format!("Bearer {app_key}"))
         .connect()
         .await?;
-
-    let network_interfaces = NetworkInterface::show().unwrap();
 
     let (ws_sink, ws_stream) = ws_socket.split();
 
@@ -240,22 +236,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .name(opt.vpn_interface_name)
         .up();
 
-
-    let mut config2 = tun::Configuration::default();
-    let vpn_layer2 = match opt.vpn_layer.as_str() {
-        "tun" => tun::Layer::L3,
-        "tap" => tun::Layer::L2,
-        _ => panic!("Invalid vpn layer"),
-    };
-    config2
-        .layer(vpn_layer)
-        .address(addr)
-        .netmask(mask)
-        .name("vpn2")
-        .up();
-
     let dev = tun::create_as_async(&config).unwrap();
-    let dev2 = tun::create_as_async(&config2).unwrap();
 
     let _ws_actor = if opt.vpn_layer == "tap" {
         let (tap_sink, tap_stream) =

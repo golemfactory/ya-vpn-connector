@@ -62,11 +62,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .netmask(mask)
         .name(opt.vpn_interface_name)
         .up();
-    let mut config2 = config.clone();
 
-    let dev1 = tun::create_as_async(&config).unwrap();
-    config2.name("vpn2");
-    let dev1 = tun::create_as_async(&config2).unwrap();
+    let _dev1 = tun::create_as_async(&config).unwrap();
 
 
     //wait
