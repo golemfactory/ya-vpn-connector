@@ -1,6 +1,7 @@
+pub mod cli_opts;
 mod tap_codec;
-mod cli_opts;
 
+use crate::cli_opts::CliOptions;
 use crate::tap_codec::{TapPacket, TapPacketCodec};
 use actix::io::SinkWrite;
 use actix::prelude::*;
@@ -13,7 +14,6 @@ use futures_util::stream::StreamExt;
 use std::net::IpAddr;
 use structopt::StructOpt;
 use tun::{AsyncDevice, TunPacket, TunPacketCodec};
-use crate::cli_opts::CliOptions;
 
 type WsFramedSink = SplitSink<Framed<BoxedSocket, ws::Codec>, ws::Message>;
 type WsFramedStream = SplitStream<Framed<BoxedSocket, ws::Codec>>;
@@ -88,11 +88,11 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
             }
             Ok(ws::Frame::Binary(bytes)) => {
                 if let Some(tun_sink) = self.tun_sink.as_mut() {
-                    log::info!("Received Binary packet, sending to TUN...");
+                    log::trace!("Received Binary packet, sending to TUN...");
 
                     match ya_relay_stack::packet_ether_to_ip_slice(&bytes) {
                         Ok(ip_slice) => {
-                            log::info!("IP packet: {:?}", ip_slice);
+                            log::trace!("IP packet: {:?}", ip_slice);
                             if let Err(err) = tun_sink.write(TunPacket::new(ip_slice.to_vec())) {
                                 log::error!("Error sending packet: {:?}", err);
                             }
@@ -102,7 +102,7 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                         }
                     }
                 } else {
-                    log::info!("Received Binary packet, sending to TAP...");
+                    log::trace!("Received Binary packet, sending to TAP...");
                     if let Err(err) = self
                         .tap_sink
                         .as_mut()
@@ -115,14 +115,14 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                 }
             }
             Ok(ws::Frame::Ping(msg)) => {
-                log::info!("Received Ping Message, replying with pong...");
+                log::debug!("Received Ping Message, replying with pong...");
                 if let Err(err) = self.ws_sink.write(ws::Message::Pong(msg)) {
                     log::error!("Error replying with pong: {:?}", err);
                     ctx.stop();
                 }
             }
             Ok(ws::Frame::Pong(_)) => {
-                log::info!("Received Pong Message");
+                log::debug!("Received Pong Message");
             }
             Ok(ws::Frame::Close(reason)) => {
                 //ctx.close(reason);
@@ -145,7 +145,7 @@ impl StreamHandler<Result<TunPacket, std::io::Error>> for VpnWebSocket {
         //self.heartbeat = Instant::now();
         match msg {
             Ok(packet) => {
-                log::info!(
+                log::trace!(
                     "Received packet from TUN {:#?}",
                     packet::ip::Packet::unchecked(packet.get_bytes())
                 );
@@ -176,7 +176,7 @@ impl StreamHandler<Result<TapPacket, std::io::Error>> for VpnWebSocket {
         //self.heartbeat = Instant::now();
         match msg {
             Ok(packet) => {
-                log::info!("Received packet from TUN {:#?}", packet.get_bytes());
+                log::trace!("Received packet from TUN {:#?}", packet.get_bytes());
                 if let Err(err) = self.ws_sink.write(ws::Message::Binary(Bytes::from(
                     packet.get_bytes().to_vec(),
                 ))) {
@@ -199,6 +199,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("RUST_LOG").unwrap_or("info".to_string()),
     );
     env_logger::init();
+    //let routes_to_delete_later = iptables_route_to_interface("eth0", "vpn0")?;
+    //iptables_cleanup(routes_to_delete_later)?;
     let opt: CliOptions = CliOptions::from_args();
     let app_key = std::env::var("YAGNA_APPKEY").expect("YAGNA_APPKEY not set");
     let (_tx, _rx) = std::sync::mpsc::channel::<bytes::Bytes>();
