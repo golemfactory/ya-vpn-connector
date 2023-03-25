@@ -224,6 +224,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .address(addr)
         .netmask(mask)
         .name(opt.vpn_interface_name)
+        .mtu(opt.vpn_mtu as i32)
         .up();
 
     let dev = tun::create_as_async(&config).unwrap();

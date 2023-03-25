@@ -31,6 +31,13 @@ pub struct CliOptions {
     pub vpn_interface_name: String,
 
     #[structopt(
+    long = "vpn-mtu",
+    help = "Mtu of the vpn interface",
+    default_value = "1200"
+    )]
+    pub vpn_mtu: u16,
+
+    #[structopt(
     long = "vpn-layer",
     help = "Name of the vpn interface. Tap support is only experimental",
     default_value = "tun",
