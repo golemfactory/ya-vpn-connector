@@ -1,6 +1,6 @@
 [package]
 name = "ya-vpn-connector"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Sieciech Czajka <sieciech.czajka@golem.network>", "Przemysław K. Rekucki <przemyslaw.rekucki@golem.network>"]
 edition = "2021"
 #description=""
@@ -28,5 +28,11 @@ libc = "0.2.101"
 tun = { version = "0.5.5", features = ["async"], git = "https://github.com/scx1332/golem-rust-tun.git" }
 # use original one if don't need windows build
 # tun = { version = "0.5.5", features = ["async"] }
+ya-relay-stack = { version = "0.4.1" }
 
-ya-relay-stack = { git = "https://github.com/golemfactory/ya-relay.git", rev = "d14101b" }
+[profile.release-lto]
+inherits = "release"
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+panic ="abort"

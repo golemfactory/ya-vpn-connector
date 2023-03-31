@@ -1584,7 +1584,8 @@ checksum = "9aec5da331524158c6d1a4ac0ab1541149c0b9505fde06423b02f5ef0106b9f0"
 [[package]]
 name = "ya-relay-stack"
 version = "0.4.1"
-source = "git+https://github.com/golemfactory/ya-relay.git?rev=d14101b#d14101bf16ee8414ad6f68e0487710a13dd448b5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a6697ae691e31718f517e7d1e744d26b1fee94a3ccfaa41a732ae10778742f"
 dependencies = [
  "derive_more",
  "futures",
@@ -1626,7 +1627,7 @@ dependencies = [
 
 [[package]]
 name = "ya-vpn-connector"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "actix",
  "actix-codec",

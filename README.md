@@ -2,6 +2,9 @@
 
 This is tool used to connect TUN interface to yagna requestor websocket.
 
+Only linux version is tested to be working. There is no Windows support yet.
+OsX support is to be tested.
+
 ## Usage
 
 After creating VPN network in yagna, you can use this tool to connect to it. 

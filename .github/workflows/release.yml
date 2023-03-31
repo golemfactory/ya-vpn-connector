@@ -51,7 +51,7 @@ jobs:
             exe: ""
             run-tests: true
 
-    name: Build Release ${{ matrix.cpu }} ${{ matrix.os }}
+    name: Build profile release-lto ${{ matrix.cpu }} ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -75,20 +75,20 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --target ${{ matrix.target }} -- --nocapture
+          args: --profile release-lto --target ${{ matrix.target }} -- --nocapture
 
       - name: Build binary target/${{ matrix.target }}/release/ya-vpn-connector
         uses: actions-rs/cargo@v1
         with:
           use-cross: ${{ matrix.use-cross }}
           command: build
-          args: --release --target ${{ matrix.target }}
+          args: --profile release-lto --target ${{ matrix.target }}
 
       - name: Upload
         uses: svenstaro/upload-release-action@2.3.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/release/ya-vpn-connector${{ matrix.exe }}
+          file: target/${{ matrix.target }}/release-lto/ya-vpn-connector${{ matrix.exe }}
           asset_name: ya-vpn-connector-${{ matrix.os }}-${{ matrix.cpu }}${{ matrix.exe }}
           tag: ${{ github.ref }}
           overwrite: true
