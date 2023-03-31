@@ -1,6 +1,6 @@
 use std::io;
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
 
 //Note tap packet support is experimental only
@@ -19,10 +19,7 @@ impl AnyPacket {
         AnyPacket(bytes)
     }
 
-    pub fn new_from_slice(bytes: &[u8]) -> AnyPacket {
-        //let proto = infer_proto(&bytes);
-        AnyPacket(Bytes::from(bytes))
-    }
+
 
     /// Return this packet's bytes.
     pub fn get_bytes(&self) -> &[u8] {
@@ -61,16 +58,8 @@ impl Decoder for AnyPacketCodec {
         }
 
         let pkt = buf.split_to(buf.len());
-
-        // reserve enough space for the next packet
         buf.reserve(90000);
 
-        // if the packet information is enabled we have to ignore the first 4 bytes
-        /*if self.0 {
-            let _ = pkt.split_to(4);
-        }*/
-
-        //  let proto = infer_proto(pkt.as_ref());
         Ok(Some(AnyPacket(pkt.freeze())))
     }
 }

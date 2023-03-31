@@ -1,5 +1,6 @@
 pub mod cli_opts;
 mod tap_codec;
+mod packet_conv;
 
 use crate::cli_opts::CliOptions;
 use crate::tap_codec::{AnyPacket, AnyPacketCodec};
@@ -14,6 +15,7 @@ use futures_util::stream::StreamExt;
 use std::net::IpAddr;
 use structopt::StructOpt;
 use tun::{AsyncDevice};
+use crate::packet_conv::{packet_ether_to_ip_slice, packet_ip_wrap_to_ether};
 
 type WsFramedSink = SplitSink<Framed<BoxedSocket, ws::Codec>, ws::Message>;
 type WsFramedStream = SplitStream<Framed<BoxedSocket, ws::Codec>>;
@@ -90,9 +92,9 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
             }
             Ok(ws::Frame::Binary(bytes)) => {
                 if let Some(tun_sink) = self.tun_sink.as_mut() {
-                    log::trace!("Received Binary packet, sending to TUN...");
+                    //log::trace!("Received Binary packet, sending to TUN...");
 
-                    match ya_relay_stack::packet_ether_to_ip_slice(&bytes) {
+                    match packet_ether_to_ip_slice(bytes) {
                         Ok(ip_slice) => {
                             log::trace!("IP packet: {:?}", ip_slice);
                             if let Err(err) = tun_sink.write(AnyPacket::new_from_bytes(ip_slice)) {
@@ -104,7 +106,7 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                         }
                     }
                 } else {
-                    log::trace!("Received Binary packet, sending to TAP...");
+                    //log::trace!("Received Binary packet, sending to TAP...");
                     if let Err(err) = self
                         .tap_sink
                         .as_mut()
@@ -147,11 +149,11 @@ impl StreamHandler<Result<AnyPacket, std::io::Error>> for VpnWebSocket {
         //self.heartbeat = Instant::now();
         match msg {
             Ok(packet) => {
-                log::trace!(
-                    "Received packet from TUN {:#?}",
-                    packet::ip::Packet::unchecked(packet.get_bytes())
-                );
-                match ya_relay_stack::packet_ip_wrap_to_ether(&packet.get_bytes(), None, None) {
+                //log::trace!(
+                //    "Received packet from TUN {:#?}",
+                //    packet::ip::Packet::unchecked(packet.get_bytes())
+                //);
+                match packet_ip_wrap_to_ether(&packet.get_bytes(), None, None) {
                     Ok(ether_packet) => {
                         if let Err(err) = self
                             .ws_sink
@@ -234,8 +236,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None,
         )
     };
-    ws_actor.join().await;
-
-    //actix_rt::signal::ctrl_c().await?;
+    loop {
+        if !ws_actor.connected() {
+            log::info!("Actor stopped, exiting");
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs_f64(0.5)).await;
+    }
     Ok(())
 }

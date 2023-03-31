@@ -1,5 +1,6 @@
-use crate::packet_conv::{packet_ether_to_ip_slice, packet_ip_wrap_to_ether};
-
+use bytes::Bytes;
+use ya_relay_stack::Error;
+use ya_relay_stack::packet::{EtherField, IpPacket, PeekPacket};
 pub fn packet_ip_wrap_to_ether(
     frame: &[u8],
     src_mac: Option<&[u8; 6]>,
@@ -43,7 +44,8 @@ pub fn packet_ip_wrap_to_ether(
     Ok(eth_packet)
 }
 
-pub fn packet_ether_to_ip_slice(frame: &[u8]) -> Result<&[u8], Error> {
+//As I understand Bytes correctly this should work in place without copying whole packet
+pub fn packet_ether_to_ip_slice(frame: Bytes) -> Result<Bytes, Error> {
     const MIN_IP_HEADER_LENGTH: usize = 20;
     if frame.len() <= 14 + MIN_IP_HEADER_LENGTH {
         return Err(Error::Other(format!(
@@ -51,8 +53,8 @@ pub fn packet_ether_to_ip_slice(frame: &[u8]) -> Result<&[u8], Error> {
             frame.len()
         )));
     }
-    let ip_frame = &frame[EtherField::PAYLOAD];
-    if let Err(err) = IpPacket::peek(ip_frame) {
+    let ip_frame = frame.slice(EtherField::PAYLOAD);
+    if let Err(err) = IpPacket::peek(&ip_frame) {
         return Err(Error::PacketMalformed(format!(
             "Error when creating IP packet from ether packet {err}"
         )));
