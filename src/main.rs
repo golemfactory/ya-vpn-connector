@@ -231,7 +231,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let dev = tun::create_as_async(&config).unwrap();
 
-    let _ws_actor = if opt.vpn_layer == "tap" {
+    let ws_actor = if opt.vpn_layer == "tap" {
         let (tap_sink, tap_stream) =
             tokio_util::codec::Framed::new(dev, TapPacketCodec::new()).split();
         VpnWebSocket::start(
@@ -254,6 +254,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     };
 
-    actix_rt::signal::ctrl_c().await?;
+    loop {
+        if !ws_actor.connected() {
+            log::info!("Actor stopped, exiting");
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs_f64(0.5)).await;
+    }
     Ok(())
 }
