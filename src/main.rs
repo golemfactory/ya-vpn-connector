@@ -90,8 +90,6 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
             }
             Ok(ws::Frame::Binary(bytes)) => {
                 if let Some(tun_sink) = self.tun_sink.as_mut() {
-                    log::trace!("Received Binary packet, sending to TUN...");
-
                     match packet_ether_to_ip_slice(bytes) {
                         Ok(ip_slice) => {
                             log::trace!("IP packet: {:?}", ip_slice);
@@ -146,25 +144,20 @@ impl StreamHandler<Result<TunPacket, std::io::Error>> for VpnWebSocket {
     fn handle(&mut self, msg: Result<TunPacket, std::io::Error>, ctx: &mut Self::Context) {
         //self.heartbeat = Instant::now();
         match msg {
-            Ok(packet) => {
-                log::trace!(
-                    "Received packet from TUN {:#?}",
-                    packet::ip::Packet::unchecked(packet.get_bytes())
-                );
-                match packet_ip_wrap_to_ether(packet.get_bytes(), None, None) {
-                    Ok(ether_packet) => {
-                        if let Err(err) = self
-                            .ws_sink
-                            .write(ws::Message::Binary(Bytes::from(ether_packet)))
-                        {
-                            log::error!("Error sending packet: {:?}", err);
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Error wrapping packet: {:?}", e);
+            Ok(packet) => match packet_ip_wrap_to_ether(packet.get_bytes(), None, None) {
+                Ok(ether_packet) => {
+                    if let Err(err) = self
+                        .ws_sink
+                        .write(ws::Message::Binary(Bytes::from(ether_packet)))
+                    {
+                        log::error!("Error sending packet to websocket: {:?}", err);
+                        ctx.stop();
                     }
                 }
-            }
+                Err(e) => {
+                    log::error!("Error wrapping packet: {:?}", e);
+                }
+            },
             Err(err) => {
                 log::error!("Tun io error: {:?}", err);
                 ctx.stop();
