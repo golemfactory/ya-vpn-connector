@@ -6,13 +6,22 @@ use tokio_util::codec::{Decoder, Encoder};
 //Note tap packet support is experimental only
 
 #[derive(Debug)]
-pub struct TapPacket(Bytes);
+pub struct AnyPacket(Bytes);
 
-impl TapPacket {
-    /// Create a new `TunPacket` based on a byte slice.
-    pub fn new(bytes: Vec<u8>) -> TapPacket {
+impl AnyPacket {
+    /// Create a new `AnyPacket` based on a byte slice.
+    pub fn new(bytes: Vec<u8>) -> AnyPacket {
         //let proto = infer_proto(&bytes);
-        TapPacket(Bytes::from(bytes))
+        AnyPacket(Bytes::from(bytes))
+    }
+    pub fn new_from_bytes(bytes: Bytes) -> AnyPacket {
+        //let proto = infer_proto(&bytes);
+        AnyPacket(bytes)
+    }
+
+    pub fn new_from_slice(bytes: &[u8]) -> AnyPacket {
+        //let proto = infer_proto(&bytes);
+        AnyPacket(Bytes::from(bytes))
     }
 
     /// Return this packet's bytes.
@@ -25,25 +34,25 @@ impl TapPacket {
     }
 }
 
-/// A TunPacket Encoder/Decoder.
-pub struct TapPacketCodec();
+/// A AnyPacket Encoder/Decoder.
+pub struct AnyPacketCodec();
 
-impl TapPacketCodec {
+impl AnyPacketCodec {
     /// Create a new `TapPacketCodec` specifying whether the underlying
     ///  tunnel Device has enabled the packet information header.
-    pub fn new() -> TapPacketCodec {
-        TapPacketCodec()
+    pub fn new() -> AnyPacketCodec {
+        AnyPacketCodec()
     }
 }
 
-impl Default for TapPacketCodec {
+impl Default for AnyPacketCodec {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Decoder for TapPacketCodec {
-    type Item = TapPacket;
+impl Decoder for AnyPacketCodec {
+    type Item = AnyPacket;
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -62,17 +71,17 @@ impl Decoder for TapPacketCodec {
         }*/
 
         //  let proto = infer_proto(pkt.as_ref());
-        Ok(Some(TapPacket(pkt.freeze())))
+        Ok(Some(AnyPacket(pkt.freeze())))
     }
 }
 
-impl Encoder<TapPacket> for TapPacketCodec {
+impl Encoder<AnyPacket> for AnyPacketCodec {
     type Error = io::Error;
 
-    fn encode(&mut self, item: TapPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: AnyPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
         dst.reserve(item.get_bytes().len() + 4);
         match item {
-            TapPacket(bytes) => dst.put(bytes),
+            AnyPacket(bytes) => dst.put(bytes),
         }
         Ok(())
     }

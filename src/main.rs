@@ -2,7 +2,7 @@ pub mod cli_opts;
 mod tap_codec;
 
 use crate::cli_opts::CliOptions;
-use crate::tap_codec::{TapPacket, TapPacketCodec};
+use crate::tap_codec::{AnyPacket, AnyPacketCodec};
 use actix::io::SinkWrite;
 use actix::prelude::*;
 use actix_codec::Framed;
@@ -13,19 +13,19 @@ use futures::stream::{SplitSink, SplitStream};
 use futures_util::stream::StreamExt;
 use std::net::IpAddr;
 use structopt::StructOpt;
-use tun::{AsyncDevice, TunPacket, TunPacketCodec};
+use tun::{AsyncDevice};
 
 type WsFramedSink = SplitSink<Framed<BoxedSocket, ws::Codec>, ws::Message>;
 type WsFramedStream = SplitStream<Framed<BoxedSocket, ws::Codec>>;
-type TunFramedSink = SplitSink<tokio_util::codec::Framed<AsyncDevice, TunPacketCodec>, TunPacket>;
-type TunFramedStream = SplitStream<tokio_util::codec::Framed<AsyncDevice, TunPacketCodec>>;
-type TapFramedSink = SplitSink<tokio_util::codec::Framed<AsyncDevice, TapPacketCodec>, TapPacket>;
-type TapFramedStream = SplitStream<tokio_util::codec::Framed<AsyncDevice, TapPacketCodec>>;
+type TunFramedSink = SplitSink<tokio_util::codec::Framed<AsyncDevice, AnyPacketCodec>, AnyPacket>;
+type TunFramedStream = SplitStream<tokio_util::codec::Framed<AsyncDevice, AnyPacketCodec>>;
+type TapFramedSink = SplitSink<tokio_util::codec::Framed<AsyncDevice, AnyPacketCodec>, AnyPacket>;
+type TapFramedStream = SplitStream<tokio_util::codec::Framed<AsyncDevice, AnyPacketCodec>>;
 
 pub struct VpnWebSocket {
     ws_sink: SinkWrite<ws::Message, WsFramedSink>,
-    tap_sink: Option<SinkWrite<TapPacket, TapFramedSink>>,
-    tun_sink: Option<SinkWrite<TunPacket, TunFramedSink>>,
+    tap_sink: Option<SinkWrite<AnyPacket, TapFramedSink>>,
+    tun_sink: Option<SinkWrite<AnyPacket, TunFramedSink>>,
 }
 
 impl VpnWebSocket {
@@ -71,13 +71,15 @@ impl Actor for VpnWebSocket {
         log::info!("VPN WebSocket: VPN connection started");
     }
 
-    fn stopped(&mut self, _: &mut Self::Context) {
+    fn stopped(&mut self, ctx: &mut Self::Context) {
         log::info!("VPN WebSocket: VPN connection stopped");
+        ctx.stop();
     }
 }
 
 impl io::WriteHandler<WsProtocolError> for VpnWebSocket {}
 impl io::WriteHandler<std::io::Error> for VpnWebSocket {}
+
 
 impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
     fn handle(&mut self, msg: Result<ws::Frame, WsProtocolError>, ctx: &mut Self::Context) {
@@ -93,7 +95,7 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                     match ya_relay_stack::packet_ether_to_ip_slice(&bytes) {
                         Ok(ip_slice) => {
                             log::trace!("IP packet: {:?}", ip_slice);
-                            if let Err(err) = tun_sink.write(TunPacket::new(ip_slice.to_vec())) {
+                            if let Err(err) = tun_sink.write(AnyPacket::new_from_bytes(ip_slice)) {
                                 log::error!("Error sending packet: {:?}", err);
                             }
                         }
@@ -107,7 +109,7 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                         .tap_sink
                         .as_mut()
                         .expect("tap sink has to be here")
-                        .write(TapPacket::new(bytes.to_vec()))
+                        .write(AnyPacket::new(bytes.to_vec()))
                     {
                         log::error!("Error sending packet to TUN: {:?}", err);
                         ctx.stop();
@@ -140,8 +142,8 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
     }
 }
 
-impl StreamHandler<Result<TunPacket, std::io::Error>> for VpnWebSocket {
-    fn handle(&mut self, msg: Result<TunPacket, std::io::Error>, ctx: &mut Self::Context) {
+impl StreamHandler<Result<AnyPacket, std::io::Error>> for VpnWebSocket {
+    fn handle(&mut self, msg: Result<AnyPacket, std::io::Error>, ctx: &mut Self::Context) {
         //self.heartbeat = Instant::now();
         match msg {
             Ok(packet) => {
@@ -161,27 +163,6 @@ impl StreamHandler<Result<TunPacket, std::io::Error>> for VpnWebSocket {
                     Err(e) => {
                         log::error!("Error wrapping packet: {:?}", e);
                     }
-                }
-            }
-            Err(err) => {
-                log::error!("Tun io error: {:?}", err);
-                ctx.stop();
-            }
-        }
-    }
-}
-
-impl StreamHandler<Result<TapPacket, std::io::Error>> for VpnWebSocket {
-    fn handle(&mut self, msg: Result<TapPacket, std::io::Error>, ctx: &mut Self::Context) {
-        //self.heartbeat = Instant::now();
-        match msg {
-            Ok(packet) => {
-                log::trace!("Received packet from TUN {:#?}", packet.get_bytes());
-                if let Err(err) = self.ws_sink.write(ws::Message::Binary(Bytes::from(
-                    packet.get_bytes().to_vec(),
-                ))) {
-                    log::error!("Error sending packet to websocket: {:?}", err);
-                    ctx.stop();
                 }
             }
             Err(err) => {
@@ -231,9 +212,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let dev = tun::create_as_async(&config).unwrap();
 
-    let _ws_actor = if opt.vpn_layer == "tap" {
+    let ws_actor = if opt.vpn_layer == "tap" {
         let (tap_sink, tap_stream) =
-            tokio_util::codec::Framed::new(dev, TapPacketCodec::new()).split();
+            tokio_util::codec::Framed::new(dev, AnyPacketCodec::new()).split();
         VpnWebSocket::start(
             ws_sink,
             ws_stream,
@@ -243,7 +224,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(tap_stream),
         )
     } else {
-        let (tun_sink, tun_stream) = dev.into_framed().split();
+        let (tun_sink, tun_stream) =    tokio_util::codec::Framed::new(dev, AnyPacketCodec::new()).split();
         VpnWebSocket::start(
             ws_sink,
             ws_stream,
@@ -253,7 +234,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None,
         )
     };
+    ws_actor.join().await;
 
-    actix_rt::signal::ctrl_c().await?;
+    //actix_rt::signal::ctrl_c().await?;
     Ok(())
 }
