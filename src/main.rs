@@ -1,7 +1,9 @@
 pub mod cli_opts;
+mod packet_conv;
 mod tap_codec;
 
 use crate::cli_opts::CliOptions;
+use crate::packet_conv::{packet_ether_to_ip_slice, packet_ip_wrap_to_ether};
 use crate::tap_codec::{TapPacket, TapPacketCodec};
 use actix::io::SinkWrite;
 use actix::prelude::*;
@@ -90,10 +92,10 @@ impl StreamHandler<Result<ws::Frame, WsProtocolError>> for VpnWebSocket {
                 if let Some(tun_sink) = self.tun_sink.as_mut() {
                     log::trace!("Received Binary packet, sending to TUN...");
 
-                    match ya_relay_stack::packet_ether_to_ip_slice(&bytes) {
+                    match packet_ether_to_ip_slice(bytes) {
                         Ok(ip_slice) => {
                             log::trace!("IP packet: {:?}", ip_slice);
-                            if let Err(err) = tun_sink.write(TunPacket::new(ip_slice.to_vec())) {
+                            if let Err(err) = tun_sink.write(TunPacket::from_bytes(ip_slice)) {
                                 log::error!("Error sending packet: {:?}", err);
                             }
                         }
@@ -149,7 +151,7 @@ impl StreamHandler<Result<TunPacket, std::io::Error>> for VpnWebSocket {
                     "Received packet from TUN {:#?}",
                     packet::ip::Packet::unchecked(packet.get_bytes())
                 );
-                match ya_relay_stack::packet_ip_wrap_to_ether(&packet.get_bytes(), None, None) {
+                match packet_ip_wrap_to_ether(packet.get_bytes(), None, None) {
                     Ok(ether_packet) => {
                         if let Err(err) = self
                             .ws_sink
