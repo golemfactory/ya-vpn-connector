@@ -3,7 +3,7 @@ name = "ya-vpn-connector"
 version = "0.2.2"
 authors = ["Sieciech Czajka <sieciech.czajka@golem.network>", "Przemysław K. Rekucki <przemyslaw.rekucki@golem.network>"]
 edition = "2021"
-#description=""
+description="Tool used to connect to Golem VPN"
 license = "GPL-3.0-or-later"
 
 [dependencies]
