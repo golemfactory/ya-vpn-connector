@@ -11,14 +11,6 @@ jobs:
       matrix:
         include:
           - cpu: x86_64
-            os: win
-            target: x86_64-pc-windows-msvc
-            build-on: windows-latest
-            use-cross: false
-            install-musl: false
-            exe: ".exe"
-            run-tests: true
-          - cpu: x86_64
             os: linux
             target: x86_64-unknown-linux-musl
             build-on: ubuntu-latest
