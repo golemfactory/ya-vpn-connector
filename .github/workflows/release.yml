@@ -79,14 +79,25 @@ jobs:
       - name: Gz asset
         run: |
           set -ex
-          gzip -f -9 --keep target/${{ matrix.target }}/release-lto/ya-vpn-connector${{ matrix.exe }}
+          tar -cf - -C target/${{ matrix.target }}/release-lto/ ya-vpn-connector${{ matrix.exe }} | gzip -9 > ya-vpn-connector.tar.gz
+          tar -cf - -C target/${{ matrix.target }}/release-lto/ ya-vpn-connector${{ matrix.exe }} | xz -9 > ya-vpn-connector.tar.xz
 
       - name: Upload
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/release-lto/ya-vpn-connector${{ matrix.exe }}.gz
-          asset_name: ya-vpn-connector-${{ matrix.os }}-${{ matrix.cpu }}.gz
+          file: ya-vpn-connector.tar.gz
+          asset_name: ya-vpn-connector-${{ matrix.os }}-${{ matrix.cpu }}.tar.gz
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "Gzipped binary for ${{ matrix.cpu }} ${{ matrix.os }}"
+
+      - name: Upload
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ya-vpn-connector.tar.xz
+          asset_name: ya-vpn-connector-${{ matrix.os }}-${{ matrix.cpu }}.tar.xz
           tag: ${{ github.ref }}
           overwrite: true
           body: "Gzipped binary for ${{ matrix.cpu }} ${{ matrix.os }}"
