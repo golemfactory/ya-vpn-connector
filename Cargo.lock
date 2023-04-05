@@ -1379,7 +1379,7 @@ dependencies = [
 [[package]]
 name = "tun"
 version = "0.5.6"
-source = "git+https://github.com/scx1332/golem-rust-tun.git#ec4b60582508645e9b79dd9c252f4ca531236820"
+source = "git+https://github.com/scx1332/golem-rust-tun.git#f6bce0f0fe9df26b1a483fec18f341cc258f1e71"
 dependencies = [
  "byteorder",
  "bytes",
@@ -1576,7 +1576,7 @@ dependencies = [
 
 [[package]]
 name = "ya-vpn-connector"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "actix",
  "actix-codec",
