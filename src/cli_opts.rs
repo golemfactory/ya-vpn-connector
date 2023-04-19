@@ -38,7 +38,7 @@ pub struct CliOptions {
         short = "u",
         long = "vpn-mtu",
         help = "Mtu of the vpn interface",
-        default_value = "1200"
+        default_value = "1220"
     )]
     pub vpn_mtu: u16,
 
