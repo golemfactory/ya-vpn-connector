@@ -1576,7 +1576,7 @@ dependencies = [
 
 [[package]]
 name = "ya-vpn-connector"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "actix",
  "actix-codec",
